@@ -25,6 +25,7 @@ class YoutubeDownloader:
             'fragment_retries': 10,
             'retries': 10,
             'ignoreerrors': True,
+            'cookiefile': 'cookies.txt'
         }
 
     def on_progress(self, d):
