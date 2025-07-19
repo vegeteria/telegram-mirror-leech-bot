@@ -1224,7 +1224,7 @@ async def restart_command(event):
         await event.respond(f"Failed to restart bot: {e}")
 
 
-async def _ytdlp_download_worker(event, task_id, uploader, url, quality, is_leech, uploader_choice, is_zip):
+async def _ytdlp_download_worker(event, task_id, uploader, url, quality, is_leech, uploader_choice, is_zip, cookie_path=None):
     class YtdlpListener:
         def __init__(self, task_id, uploader):
             self.task_id = task_id
@@ -1263,7 +1263,11 @@ async def _ytdlp_download_worker(event, task_id, uploader, url, quality, is_leec
         if task_id in tasks:
             tasks[task_id]['download_dir'] = download_path
 
-        downloaded_file = await asyncio.to_thread(downloader.download, url, download_path, quality)
+        download_opts = {}
+        if cookie_path:
+            download_opts['cookiefile'] = cookie_path
+
+        downloaded_file = await asyncio.to_thread(downloader.download, url, download_path, quality, options=download_opts)
 
         if not downloaded_file:
             if task_id in tasks and not tasks[task_id]['progress_data'].get('action', '').startswith("Error"):
@@ -1278,6 +1282,9 @@ async def _ytdlp_download_worker(event, task_id, uploader, url, quality, is_leec
     except Exception as e:
         if task_id in tasks:
             tasks[task_id]['progress_data']['action'] = f"Error: {e}"
+    finally:
+        if cookie_path and os.path.exists(cookie_path):
+            os.remove(cookie_path)
 
 qualities = {
     "best": "bestvideo+bestaudio/best",
@@ -1292,20 +1299,31 @@ qualities = {
 @authorized_users
 async def ytdlp_command(event):
     if len(event.message.text.split()) < 2:
-        await event.respond("Usage: /ytdlp <url>")
+        await event.respond("Usage: /ytdlp <url> or reply to a cookies.txt file with /ytdlp <url>")
         return
 
     url = event.message.text.split(maxsplit=1)[1]
     
+    cookie_path = None
+    replied_message = await event.get_reply_message()
+    if replied_message and replied_message.document:
+        for attr in replied_message.document.attributes:
+            if isinstance(attr, DocumentAttributeFilename) and attr.file_name.lower() == 'cookies.txt':
+                cookie_path = os.path.join(DOWNLOAD_PATH, f"cookies_{event.sender_id}.txt")
+                await replied_message.download_media(file=cookie_path)
+                break
+
     try:
         downloader = YoutubeDownloader(None)
         info = await asyncio.to_thread(downloader.extract_info, url, {'playlist_items': '0'})
         if not info:
             await event.respond("Could not extract video info. The link might be invalid or private.")
+            if cookie_path and os.path.exists(cookie_path):
+                os.remove(cookie_path)
             return
 
         request_id = uuid.uuid4().hex[:8]
-        ytdlp_requests[request_id] = {'url': url, 'event': event}
+        ytdlp_requests[request_id] = {'url': url, 'event': event, 'cookie_path': cookie_path}
 
         buttons = []
         for q_name, q_key in {"Best": "best", "1080p": "1080p", "720p": "720p", "480p": "480p", "360p": "360p", "Audio Only": "audio"}.items():
@@ -1318,6 +1336,8 @@ async def ytdlp_command(event):
 
     except Exception as e:
         await event.respond(f"An error occurred: {e}")
+        if cookie_path and os.path.exists(cookie_path):
+            os.remove(cookie_path)
 
 ytdlp_requests = {}
 
@@ -1373,8 +1393,11 @@ async def on_ytdlp_upload_choice(event):
     original_event = request_data['event']
     url = request_data['url']
     quality = request_data['quality']
+    cookie_path = request_data.get('cookie_path')
 
     if uploader_choice == "cancel":
+        if cookie_path and os.path.exists(cookie_path):
+            os.remove(cookie_path)
         await event.edit("Task cancelled.")
         return
         
@@ -1385,7 +1408,7 @@ async def on_ytdlp_upload_choice(event):
     is_leech = uploader_choice == 'leech'
     
     task = asyncio.create_task(_ytdlp_download_worker(
-        original_event, task_id, uploader, url, quality, is_leech, uploader_choice, False
+        original_event, task_id, uploader, url, quality, is_leech, uploader_choice, False, cookie_path=cookie_path
     ))
     
     tasks[task_id] = {
