@@ -1,0 +1,18 @@
+# VPS Dependencies
+
+## System-level dependencies
+- python3
+- python3-pip
+- ffmpeg
+- aria2
+- yt-dlp
+
+## Python dependencies (from requirements.txt)
+- telethon
+- aiohttp
+- python-dotenv
+- requests
+- requests-toolbelt
+- beautifulsoup4
+- psutil
+- lxml

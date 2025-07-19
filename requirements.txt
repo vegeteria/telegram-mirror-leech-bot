@@ -1,0 +1,8 @@
+telethon
+aiohttp
+python-dotenv
+requests
+requests-toolbelt
+beautifulsoup4
+psutil
+lxml

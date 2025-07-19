@@ -1,0 +1,82 @@
+Bot Commands Guide
+
+Here is a list of all available commands and how to use them.
+
+---
+
+/start
+- Purpose: Checks if the bot is online.
+- Usage: /start
+
+---
+
+/mirror
+- Purpose: Downloads a file from a link or a Telegram message and uploads it to a chosen host.
+- Usage:
+  - With a link: /mirror <direct_download_link>
+  - Replying to a file: Reply to a message containing a file with /mirror
+
+---
+
+/zipmirror
+- Purpose: Same as /mirror, but zips the file before uploading.
+- Usage:
+  - With a link: /zipmirror <direct_download_link>
+  - Replying to a file: Reply to a message containing a file with /zipmirror
+
+---
+
+/unzipmirror
+- Purpose: Downloads a ZIP archive from a link or Telegram message, extracts it, and uploads the contents to Gofile.
+- Supported Formats: 7z, ZIP, RAR, GZIP, BZIP2, TAR, XZ, and many more.
+- Usage:
+  - With a link: /unzipmirror <link_to_archive_file>
+  - With a password-protected link: /unzipmirror <password> <link_to_archive_file>
+  - Replying to a file: Reply to an archive file with /unzipmirror
+  - Replying to a password-protected file: Reply to an archive file with /unzipmirror <password>
+
+---
+
+/leech
+- Purpose: Downloads a file from a direct link or a Telegram file and re-uploads it to the Telegram chat.
+- Usage:
+  - With a link: /leech <direct_download_link>
+  - Replying to a file: Reply to a message containing a file with /leech
+
+---
+
+/ytdlp
+- Purpose: Downloads a video or audio from a URL using yt-dlp and uploads it to a chosen destination.
+- Usage: /ytdlp <url>
+  - After sending the command, you will be prompted to choose the video/audio quality and then the upload destination.
+
+---
+
+/status
+- Purpose: Shows the status of all currently active tasks.
+- Usage: /status
+
+---
+
+/stats
+- Purpose: Displays statistics about the bot and the server it's running on (uptime, CPU/RAM usage, etc.).
+- Usage: /stats
+
+---
+
+/ping
+- Purpose: Checks the bot's latency to Telegram servers.
+- Usage: /ping
+
+---
+
+/stop
+- Purpose: Cancels an ongoing task.
+- Usage: /stop <task_id>
+  - Note: You can get the task_id from the /status command.
+
+---
+
+/restart
+- Purpose: Cancels all ongoing tasks and restarts the bot.
+- Usage: /restart

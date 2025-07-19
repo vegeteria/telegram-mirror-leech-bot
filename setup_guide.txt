@@ -1,0 +1,69 @@
+# VPS Setup Guide
+
+1.  **Update and upgrade your server:**
+    ```bash
+    sudo apt update && sudo apt upgrade -y
+    ```
+
+2.  **Install system-level dependencies:**
+    ```bash
+    sudo apt install -y python3 python3-pip ffmpeg aria2
+    ```
+    *Note: yt-dlp is often best installed or updated via pip to get the latest version.*
+
+3.  **Create a directory for the bot and navigate into it:**
+    ```bash
+    mkdir ~/telegram-bot && cd ~/telegram-bot
+    ```
+
+4.  **Copy the contents of the `server` directory (that you created locally) to this new directory on your VPS.** You can use `scp` for this. For example:
+    ```bash
+    scp -r /path/to/your/local/server/* user@your_vps_ip:~/telegram-bot/
+    ```
+
+5.  **Install Python dependencies:**
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+
+6.  **Install/Update yt-dlp:**
+    ```bash
+    pip3 install -U yt-dlp
+    ```
+
+7.  **Set up your environment variables:**
+    Create a `.env` file in the `~/telegram-bot` directory and add your Telegram API credentials and other necessary variables. It should look something like this:
+    ```
+    API_ID=your_api_id
+    API_HASH=your_api_hash
+    BOT_TOKEN=your_bot_token
+    OWNER_ID=your_owner_id
+    ```
+
+8.  **Run the bot:**
+    You can run the bot directly:
+    ```bash
+    python3 bot.py
+    ```
+
+    For keeping the bot running in the background, it's recommended to use a process manager like `screen` or `pm2`:
+
+    **Using `screen`:**
+    ```bash
+    screen -S telegram-bot
+    python3 bot.py
+    ```
+    You can detach from the screen session by pressing `Ctrl+A` then `D`. To re-attach, use `screen -r telegram-bot`.
+
+    **Using `pm2` (a more robust solution):**
+    First, install pm2 (it's a Node.js application, so you'll need Node.js and npm):
+    ```bash
+    sudo apt install -y nodejs npm
+    sudo npm install pm2 -g
+    ```
+    Then, start your bot with pm2:
+    ```bash
+    pm2 start bot.py --name telegram-bot --interpreter python3
+    ```
+    You can monitor the bot with `pm2 logs telegram-bot`.
+    ```
