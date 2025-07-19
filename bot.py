@@ -770,19 +770,27 @@ async def _unzip_mirror_worker(event, source, task_id, uploader, reply_to_msg, p
             )
         elif uploader_choice == 'pixeldrain':
             pixeldrain_api_key = os.getenv('PIXELDRAIN_API_KEY')
-            uploaded_links = []
+            uploaded_files_info = []
             for file_path in files_to_upload:
                 upload_response = await asyncio.to_thread(sync_upload_to_pixeldrain, file_path, task_id, os.path.basename(file_path), uploader, pixeldrain_api_key)
                 if upload_response.get('success'):
                     file_id = upload_response.get('id')
+                    file_name = os.path.basename(file_path)
+                    file_size = get_readable_file_size(os.path.getsize(file_path))
                     direct_download_link = f"https://pixeldrain.com/api/file/{file_id}"
-                    uploaded_links.append(direct_download_link)
+                    
+                    file_info = (
+                        f"**File:** `{file_name}`\n"
+                        f"**Size:** {file_size}\n"
+                        f"**Link:** {direct_download_link}"
+                    )
+                    uploaded_files_info.append(file_info)
                 else:
                     error_message = upload_response.get('message', 'Unknown error')
                     await client.send_message(event.chat_id, f"Pixeldrain upload failed for `{os.path.basename(file_path)}`: {error_message}", reply_to=reply_to_msg)
             
-            if uploaded_links:
-                message_text = "**Unzip and upload to Pixeldrain successful!**\n\n**Direct Links:**\n" + "\n".join(uploaded_links)
+            if uploaded_files_info:
+                message_text = "**Unzip and upload to Pixeldrain successful!**\n\n" + "\n\n".join(uploaded_files_info)
                 await client.send_message(
                     event.chat_id,
                     message_text,
