@@ -17,7 +17,7 @@ from telethon.tl.custom import Button
 from telethon.tl.types import KeyboardButtonUrl, DocumentAttributeFilename
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 from status_utils import get_readable_file_size, get_readable_time, get_progress_bar_string
-from lxml.html import fromstring as HTML
+from bs4 import BeautifulSoup
 from requests import Session as RSession
 from hashlib import sha256
 import base64
@@ -86,27 +86,27 @@ def buzzheavier(url):
     with RSession() as session:
         response = session.get(url)
         response.raise_for_status()
-        tree = HTML(response.text)
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-        if link := tree.xpath("//a[contains(@class, 'link-button') and contains(@class, 'gay-button')]/@hx-get"):
-            return _bhscraper("https://buzzheavier.com" + link[0])
+        if link := soup.select_one('a.link-button.gay-button'):
+            return _bhscraper("https://buzzheavier.com" + link['hx-get'])
         
-        if folders := tree.xpath("//tbody[@id='tbody']/tr"):
+        if folders := soup.select('tbody#tbody tr'):
             details = {"contents": [], "title": "", "total_size": 0}
-            title_element = tree.xpath("//span/text()")
+            title_element = soup.select_one('span')
             if title_element:
-                details["title"] = title_element[0].strip()
+                details["title"] = title_element.get_text(strip=True)
 
             for data in folders:
                 try:
-                    filename_element = data.xpath(".//a")
+                    filename_element = data.select_one('a')
                     if not filename_element: continue
-                    filename = filename_element[0].text.strip()
-                    _id = filename_element[0].attrib.get("href", "").strip()
+                    filename = filename_element.get_text(strip=True)
+                    _id = filename_element['href'].strip()
                     
-                    size_element = data.xpath(".//td[@class='text-center']/text()")
+                    size_element = data.select_one('td.text-center')
                     if not size_element: continue
-                    size_str = size_element[0].strip()
+                    size_str = size_element.get_text(strip=True)
                     
                     item_url = _bhscraper(f"https://buzzheavier.com{_id}", True)
                     if not item_url: continue
