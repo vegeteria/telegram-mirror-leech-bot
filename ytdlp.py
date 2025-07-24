@@ -3,13 +3,7 @@ import os
 import re
 from yt_dlp import YoutubeDL, DownloadError
 
-class MyLogger:
-    def debug(self, msg):
-        pass
-    def warning(self, msg):
-        pass
-    def error(self, msg):
-        pass
+
 
 class YoutubeDownloader:
     def __init__(self, listener):
@@ -17,7 +11,7 @@ class YoutubeDownloader:
         self.is_cancelled = False
         self.opts = {
             'progress_hooks': [self.on_progress],
-            'logger': MyLogger(),
+            
             'noprogress': True,
             'overwrites': True,
             'writethumbnail': True,
