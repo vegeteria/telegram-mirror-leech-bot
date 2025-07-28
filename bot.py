@@ -31,6 +31,10 @@ class DirectDownloadLinkException(Exception):
     """Custom exception for direct download link errors."""
     pass
 
+class FileNameTooLongError(Exception):
+    """Custom exception for filenames that are too long."""
+    pass
+
 def speed_string_to_bytes(size_str):
     """Converts a string with size units (e.g., '1.23 GB', '500 MB') to bytes."""
     size_str = size_str.strip()
@@ -466,8 +470,8 @@ async def download_telegram_file(message, task_id, uploader):
             tasks[task_id]['progress_data']['action'] = f"Download Error: {e}"
         return None, None, None
 
-async def download_file(url, task_id, uploader):
-    file_name = os.path.basename(url)
+async def download_file(url, task_id, uploader, custom_file_name=None):
+    file_name = custom_file_name or os.path.basename(url)
     downloaded_file_path = os.path.join(DOWNLOAD_PATH, f"{task_id}_{file_name}")
     tasks[task_id]['downloaded_path'] = downloaded_file_path
     start_time = time.time()
@@ -480,15 +484,21 @@ async def download_file(url, task_id, uploader):
                 response.raise_for_status()
                 total_size = int(response.headers.get('content-length', 0))
                 
-                with open(downloaded_file_path, 'wb') as f:
-                    downloaded_size = 0
-                    async for chunk in response.content.iter_chunked(8192):
-                        if tasks.get(task_id, {}).get('is_cancelled'):
-                            raise asyncio.CancelledError
-                        f.write(chunk)
-                        downloaded_size += len(chunk)
-                        if total_size > 0:
-                            await progress_callback(task_id, downloaded_size, total_size, "Download", file_name, uploader, start_time)
+                try:
+                    with open(downloaded_file_path, 'wb') as f:
+                        downloaded_size = 0
+                        async for chunk in response.content.iter_chunked(8192):
+                            if tasks.get(task_id, {}).get('is_cancelled'):
+                                raise asyncio.CancelledError
+                            f.write(chunk)
+                            downloaded_size += len(chunk)
+                            if total_size > 0:
+                                await progress_callback(task_id, downloaded_size, total_size, "Download", file_name, uploader, start_time)
+                except OSError as e:
+                    if e.errno == 36: # File name too long
+                        raise FileNameTooLongError(f"File name is too long: {file_name}")
+                    else:
+                        raise e
         return downloaded_file_path, file_name, total_size
     except (aiohttp.ClientError, asyncio.CancelledError) as e:
         if task_id in tasks:
@@ -702,7 +712,18 @@ async def _cleanup_task_files(task_id):
 async def _unzip_mirror_worker(event, source, task_id, uploader, reply_to_msg, password=None, uploader_choice='gofile'):
     try:
         if isinstance(source, str):
-            downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader)
+            try:
+                downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader)
+            except FileNameTooLongError:
+                try:
+                    async with client.conversation(event.chat_id, timeout=120) as conv:
+                        await conv.send_message("The file name is too long. Please provide a shorter name for the file:", reply_to=reply_to_msg)
+                        response = await conv.get_response()
+                        custom_name = response.text
+                        downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader, custom_file_name=custom_name)
+                except asyncio.TimeoutError:
+                    await client.send_message(event.chat_id, "You did not provide a name in time. Task cancelled.", reply_to=reply_to_msg)
+                    return
         else:
             downloaded_file_path, file_name, _ = await download_telegram_file(source, task_id, uploader)
 
@@ -814,7 +835,18 @@ async def _mirror_upload_worker(event, source, is_zip, task_id, uploader, upload
     try:
         if not downloaded_file_path:
             if isinstance(source, str):
-                downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader)
+                try:
+                    downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader)
+                except FileNameTooLongError:
+                    try:
+                        async with client.conversation(event.chat_id, timeout=120) as conv:
+                            await conv.send_message("The file name is too long. Please provide a shorter name for the file:", reply_to=reply_to_msg)
+                            response = await conv.get_response()
+                            custom_name = response.text
+                            downloaded_file_path, file_name, _ = await download_file(source, task_id, uploader, custom_file_name=custom_name)
+                    except asyncio.TimeoutError:
+                        await client.send_message(event.chat_id, "You did not provide a name in time. Task cancelled.", reply_to=reply_to_msg)
+                        return
             else:
                 downloaded_file_path, file_name, _ = await download_telegram_file(source, task_id, uploader)
             
